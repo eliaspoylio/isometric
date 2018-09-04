@@ -1,0 +1,382 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>isometric</title>
+        <script src="//cdn.jsdelivr.net/phaser/2.5.0/phaser.min.js"></script>
+        <script src = "/static/js/phaser-plugin-isometric.js"></script>
+    </head>
+    <body>
+
+    <script type="text/javascript">
+
+var game = new Phaser.Game(1024, 512, Phaser.AUTO, 'test', null, true, false);
+
+var BasicGame = function (game) { };
+
+BasicGame.Boot = function (game) { };
+
+var isoGroup, player, tileGroup;
+
+var enemies=[];
+
+game.forceSingleUpdate = true;
+
+
+
+
+BasicGame.Boot.prototype =
+{
+
+
+    preload: function () {
+
+        game.create.texture('player', playerData, 3, 3, 0);
+        game.create.texture('tile', tileData, 3, 3, 0);
+        game.create.texture('roskis', boxData, 3, 3, 0);
+              game.create.texture('chair', chairData, 3, 3, 0);
+        game.create.texture('desk', deskData, 3, 3, 0);
+        game.create.texture('wall', wallData, 3, 3, 0);
+        game.create.texture('dead', deadData, 3, 3, 0);
+
+        game.time.advancedTiming = true;
+
+        game.plugins.add(new Phaser.Plugin.Isometric(game));
+
+        game.world.setBounds(0, 0, 2048, 1024);
+
+        game.physics.startSystem(Phaser.Plugin.Isometric.ISOARCADE);
+
+        game.physics.isoArcade.gravity.setTo(1, 1, -500);
+
+        game.iso.anchor.setTo(0.5, 0);
+
+
+
+    },
+    create: function () {
+        // Create a group for our tiles, so we can use Group.sort
+        tileGroup = game.add.group();
+        isoGroup = game.add.group();
+
+        this.spawnTiles();
+        this.spawnOffice();
+        this.spawnEnemy();
+        this.spawnWall();
+
+        player = game.add.isoSprite(200, game.world.height-1, 0, 'player', 0, isoGroup);
+        player.anchor.set(0.5);
+        game.physics.isoArcade.enable(player);
+        player.body.collideWorldBounds = true;
+        player.body.moves=true;
+        player.health = 100;
+        player.events.onKilled.add(function(){
+          isoGroup.setAll('tint', 0xff0000);
+          tileGroup.setAll('tint', 0xff0000);
+        });
+
+        // Set up our controls.
+        this.cursors = game.input.keyboard.createCursorKeys();
+
+        this.game.input.keyboard.addKeyCapture([
+            Phaser.Keyboard.LEFT,
+            Phaser.Keyboard.RIGHT,
+            Phaser.Keyboard.UP,
+            Phaser.Keyboard.DOWN,
+            Phaser.Keyboard.SPACEBAR
+        ]);
+
+        var space = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+
+        space.onDown.add(function () {
+          if (player.body.velocity.z == 0){
+            player.body.velocity.z = 160;
+          }
+        }, this);
+
+        // Make the camera follow the player.
+        game.camera.follow(player);
+
+
+
+    },
+    update: function () {
+
+        var speed = 150;
+
+        if (! player.alive){
+                    game.camera.fade(0x000000, 10000);
+                    this.game.debug.text("###################", 450, 114, "#fff");
+                    this.game.debug.text("#    YOU ARE      #", 450, 128, "#fff");
+                    this.game.debug.text("# BEING SLOWLY    #", 450, 142, "#fff");
+                    this.game.debug.text("# DEVOURED BY     #", 450, 156, "#fff");
+                    this.game.debug.text("# THE LIVING DEAD #", 450, 170, "#fff");
+                    this.game.debug.text("###################", 450, 184, "#fff");
+
+        }
+        else{
+          this.game.debug.text("Health: "+player.health, 2, 50, "#000");
+        }
+
+
+        this.updateEnemy();
+
+        //console.log(player.world.x)
+
+        if (this.cursors.up.isDown) {
+            player.body.velocity.y = -speed;
+        }
+        else if (this.cursors.down.isDown) {
+            player.body.velocity.y = speed;
+        }
+        else {
+            player.body.velocity.y = 0;
+        }
+
+        if (this.cursors.left.isDown) {
+            player.body.velocity.x = -speed;
+        }
+        else if (this.cursors.right.isDown) {
+            player.body.velocity.x = speed;
+        }
+        else {
+            player.body.velocity.x = 0;
+        }
+
+
+        game.physics.isoArcade.collide(isoGroup);
+        game.iso.topologicalSort(isoGroup);
+
+        game.physics.arcade.overlap(player, enemies, this.collisionHandler, null, this);
+    },
+
+    render: function () {
+        //game.debug.text("Move with cursors, jump with space!", 2, 36, "#ffffff");
+        //game.debug.text(game.time.fps || '--', 2, 14, "#a7aebe");
+        //game.debug.text(player.position || '--', 2, 58, "#a7aebe");
+        //game.debug.text(player.health, 2, 50, "#000")
+    },
+
+    spawnTiles: function () {
+        var tile;
+        for (var xx = -20; xx < game.world.width/2; xx += 50) {
+          for (var yy = -45; yy < game.world.height; yy += 50) {
+            tile = game.add.isoSprite(xx, yy, -1, 'tile', 0, tileGroup);
+            tile.tint = 0xEFEFEF;
+          }
+        }
+    },
+
+    spawnOffice: function () {
+        for (var xx = 40; xx < game.world.width/2; xx += 191) {
+          for (var yy = 40; yy < game.world.height; yy += 191) {
+            n1 = game.add.isoSprite(xx, yy-50, 0, 'roskis', 0, isoGroup);
+            game.physics.isoArcade.enable(n1);
+            n1.body.collideWorldBounds = true;
+            n1.body.immovable=false;
+            n1.body.moves=true;
+            n1.body.drag.set(1000, 1000, 0);
+            n1.anchor.set(0.5);
+
+            n2 = game.add.isoSprite(xx+50, yy, 0, 'chair', 0, isoGroup);
+            game.physics.isoArcade.enable(n2);
+            n2.body.collideWorldBounds = true;
+            n2.body.moves=true;
+            n2.body.drag.set(100, 100, 0);
+            n2.anchor.set(0.5);
+
+            n3 = game.add.isoSprite(xx, yy, 0, 'desk', 0, isoGroup);
+            game.physics.isoArcade.enable(n3);
+            n3.body.collideWorldBounds = true;
+            n3.body.moves=true;
+            n3.body.drag.set(10000, 10000, 0);
+            n3.anchor.set(0.5);
+          }
+        }
+    },
+
+
+
+
+    spawnEnemy: function () {
+        for (var xx = 0; xx < 50; xx++) {
+            var ex=game.rnd.integerInRange(10,game.world.width);
+            var ey=game.rnd.integerInRange(10,game.world.height);
+            enemy = game.add.isoSprite(ex, ey, 0, 'player', 0, isoGroup)
+            enemy.anchor.set(0.5);
+            game.physics.isoArcade.enable(enemy);
+            enemy.body.collideWorldBounds = true;
+            enemy.body.moves=true;
+            enemy.tint = 0x697999;
+            enemies.push(enemy);
+        }
+        
+    },
+
+    updateEnemy: function () {
+      for (e = 0; e < enemies.length; e ++){
+        if(game.physics.arcade.distanceBetween(player, enemies[e]) < 400){
+          degrees = game.physics.arcade.angleBetween(enemies[e], player) * (180/Math.PI);
+          game.physics.arcade.velocityFromAngle(degrees, 30, enemies[e].body.velocity);
+        }
+      }
+
+    },
+
+    spawnWall: function () {
+        var wall;
+          for (var yy = -45; yy < game.world.height; yy += 50) {
+            wall = game.add.isoSprite(55, yy, -1, 'wall', 0, tileGroup);
+            wall.tint = 0xffff00;
+          }
+    },
+
+    collisionHandler: function (player, enemy) {
+    //console.log("collision")
+    console.log(player.health)
+    game.camera.flash(0x990000, 500);
+    player.damage(1);
+  }
+
+
+};
+
+game.state.add('Boot', BasicGame.Boot);
+game.state.start('Boot');
+
+var playerData = [
+  '......66.......',
+  '.....68A8......',
+  '.....6888......',
+  '......88.......',
+  '.....FFFF......',
+  '....FFFFFF.....',
+  '....FFFFFF.....',
+  '....FFFFFF.....',
+  '....FFFFFF.....',
+  '....FFFFFF.....',
+  '....FFFFFF.....',
+  '....F00000.....',
+  '.....00.00.....',
+  '.....00.00.....',
+  '.....00.00.....',
+  '.....00.00.....',
+  '.....00.00.....',
+  '.....00.00.....',
+  '.....00.00.....',
+  '.....00.000....',
+  '......0........',
+];
+
+
+var boxData = [
+    '......11......',
+    '....116611....',
+    '..1166666611..',
+    '11666666666611',
+    '16166666666161',
+    '16661666616661',
+    '16666611666661',
+    '16666666666661',
+    '16666666666661',
+    '16666666666661',
+    '11666666666611',
+    '..1166666611..',
+    '....116611....',
+    '......11......'
+];
+
+
+var tileData = [
+  '............2222............',
+        '..........22222222..........',
+  '........222222222222........',
+        '......2222222222222222......',
+  '....22222222222222222222....',
+        '..222222222222222222222222..',
+  '2222222222222222222222222222',
+        '..222222222222222222222222..',
+        '....22222222222222222222....',
+        '......2222222222222222......',
+  '........222222222222........',
+        '..........22222222..........',
+  '............2222............',
+];
+
+var chairData = [
+'.........000',
+'.....0000990',
+'.....0999990',
+'.....0999990',
+'..0000999990',
+'00999099900.',
+'..0000000...',
+'.....0......',
+'.....0......',
+'.....0......',
+'....111.....',
+'..1..1..1...',
+'.....1......'
+];
+
+
+
+var deskData = [
+'......................',
+'.............11.......',
+'...........116611.....',
+'.........1166666611...',
+'.......11666666666611.',
+'.....1166666666661111.',
+'...11666666666611...1.',
+'.11666666666611.....1.',
+'.111666666611.......1.',
+'.1..1166611.........1.',
+'.1....1111..........1.',
+'.1.....11...........1.',
+'.1.....11.............',
+'.1.....11.............',
+'.1.....11.............',
+'.......11.............',
+'.......11.............',
+'.......11.............',
+'......................',
+'......................'
+];
+
+var wallData = [
+  '............2.2.............',
+        '..........2.2.2.2...........',
+  '........2.2.2.2.2.2.........',
+        '......2.2.2.2.2.2.2.2.......',
+  '....2.2.2.2.2.2.2.2.2.2.....',
+        '..2.2.2.2.2.2.2.2.2.2.2.2...',
+  '2.2.2.2.2.2.2.2.2.2.2.2.2.2.',
+        '..2.2.2.2.2.2.2.2.2.2.2.2...',
+        '....2.2.2.2.2.2.2.2.2.2.....',
+        '......2.2.2.2.2.2.2.2.......',
+  '........2.2.2.2.2.2.........',
+        '..........2.2.2.2...........',
+  '............2.2.............',
+];
+
+var deadData = [
+'...FFFFFF.......000...',
+'.......FFFFFFFFFFFFf..',
+'..........FFFFFFF.F...',
+'........FFFFFFFF..F...',
+'......0000.0000....F..',
+'....00000.000.......F.',
+'0.0000..000..........F',
+'0.00..000.............',
+'00.0.000..............',
+'...000................',
+'...00.................'
+];
+
+
+
+
+
+</script>
+</body>
